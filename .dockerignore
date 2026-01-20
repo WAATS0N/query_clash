@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.git/
+.gitignore
+test_app.py
+test_output.txt
+test_result.txt
+database.db

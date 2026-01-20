@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Clash | Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .analytics-container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background: var(--terminal-bg);
+            border: 2px solid var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 255, 242, 0.2);
+        }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .stats-table th, .stats-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        .stats-table th {
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        .solved-yes { color: #00ff00; font-weight: bold; }
+        .solved-no { color: #ff0000; }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--neon-cyan);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="analytics-container">
+        <a href="/game" class="back-link"><< RETURN TO TERMINAL</a>
+        <h1 class="panel-title" style="font-size: 1.5rem;">FLEET ANALYTICS & PERFORMANCE</h1>
+        
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Operator</th>
+                    <th>Current Round</th>
+                    <th>Queries Executed</th>
+                    <th>Time Elapsed</th>
+                    <th>Solved</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in stats %}
+                <tr>
+                    <td>{{ row.name }}</td>
+                    <td>ROUND {{ row.round }}</td>
+                    <td>{{ row.queries }}</td>
+                    <td>{{ row.time }}</td>
+                    <td class="{{ 'solved-yes' if row.solved == 'YES' else 'solved-no' }}">{{ row.solved }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

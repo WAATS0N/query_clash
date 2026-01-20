@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Clash | Submission</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .submit-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        .status-success {
+            color: var(--primary-color);
+        }
+
+        .status-fail {
+            color: var(--error-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="submit-container">
+        <h1 class="glitch-text">MISSION STATUS</h1>
+
+        <div class="login-box">
+            <!-- This block would be dynamic in a real Jinja render but keeping simple for now -->
+            <h2 class="{{ 'status-success' if success else 'status-fail' }}">
+                {{ 'COMPLETED' if success else 'TERMINATED' }}
+            </h2>
+            <p style="margin: 2rem 0; font-size: 1.2rem;">
+                TIME ELAPSED: {{ time_taken }}
+            </p>
+            <p style="color: #888;">
+                Log closed. Please wait for final rankings.
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

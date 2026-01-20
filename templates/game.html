@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Clash | Terminal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="game-container">
+        <!-- Header -->
+        <header class="game-header">
+            <div class="brand">QUERY_CLASH</div>
+            <div class="timer" id="timerDisplay">00:00:00</div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <a href="/analytics" class="cyber-btn" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none;">ANALYTICS</a>
+                <a href="/logout" class="cyber-btn" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none; border-color: var(--error-color); color: var(--error-color);">LOGOUT</a>
+                <button id="themeToggle" class="cyber-btn"
+                    style="padding: 4px 10px; font-size: 0.8rem;">LIGHT/DARK</button>
+                <div class="user-info">OPERATOR: <span id="userName">{{ user }}</span></div>
+            </div>
+        </header>
+
+        <!-- Sidebar: Investigations -->
+        <aside class="sidebar" id="investigationPanel">
+            <div class="panel-title">MISSION BRIEFING</div>
+            <div class="investigation-card briefing">
+                <img src="{{ url_for('static', filename='illustration.png') }}" alt="Detective Illustration" style="width: 100%; border-radius: 4px; margin-bottom: 10px; border: 1px solid var(--neon-cyan);">
+                <div class="inv-prompt">
+                    A murder occurred on <b>Jan 15, 2018</b> in <b>SQL City</b>. 
+                    The detective lost the crime scene report. 
+                    <br><br>
+                    <b>OBJECTIVE:</b> Retrieve the report from the <code>crime_scene_report</code> table to start your investigation.
+                </div>
+            </div>
+
+            <div class="panel-title">INVESTIGATIONS</div>
+            <div id="investigationList">
+                <!-- Loaded via JS -->
+                <div class="result-msg">Loading directives...</div>
+            </div>
+
+            <div class="panel-title" style="margin-top: 20px;">DATABASE SCHEMA</div>
+            <a href="{{ url_for('static', filename='schema.png') }}" target="_blank">
+                <img src="{{ url_for('static', filename='schema.png') }}" alt="Database Schema Map" style="width: 100%; border-radius: 4px; margin-bottom: 10px; border: 1px solid var(--neon-cyan); cursor: pointer;" title="Click to enlarge">
+            </a>
+            <div id="schemaList" class="schema-list">
+                <div class="result-msg">Loading schema...</div>
+            </div>
+
+            <div class="panel-title" style="margin-top: 20px;">CASE NOTES</div>
+            <textarea id="caseNotes" class="case-notes" placeholder="Note down clues, IDs, and transcripts here..."></textarea>
+
+            <button id="finalSubmitBtn" class="cyber-btn hidden" style="width: 100%; margin-top: auto;">SUBMIT FINAL
+                REPORT</button>
+        </aside>
+
+        <!-- Main Area: SQL Terminals -->
+        <main class="main-area">
+            <div class="terminal-tabs" id="tabContainer">
+                <div class="tab active" onclick="switchTab(0)">TERM_01</div>
+                <div class="tab-add" onclick="addTab()">+</div>
+            </div>
+
+            <div class="terminal-container">
+                <textarea id="sqlEditor" class="sql-editor" placeholder="ENTER SQL QUERY..."
+                    spellcheck="false"></textarea>
+                <div class="action-bar">
+                    <button class="run-btn" onclick="runQuery()">EXECUTE</button>
+                </div>
+                <div id="resultsArea" class="results-area">
+                    <div class="result-msg">READY. AWAITING INPUT.</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden Submit Form -->
+    <form id="finalForm" action="/submit" method="POST" class="hidden">
+        <input type="hidden" name="final_answer" id="finalAnswerInput">
+    </form>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>

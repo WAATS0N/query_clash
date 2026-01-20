@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Clash | Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="login-container">
+        <div style="position: absolute; top: 1rem; right: 1rem;">
+            <button id="themeToggle" class="cyber-btn">THEME</button>
+        </div>
+        <div class="login-box">
+            <h1 class="glitch-text">QUERY_CLASH</h1>
+            <form action="#" method="POST" id="loginForm">
+                <div class="input-group">
+                    <label class="input-label">ENTER ALIAS</label>
+                    <input type="text" name="name" class="styled-input" id="nameInput" placeholder="Agent_Name"
+                        autocomplete="off" required>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">PASS-KEY</label>
+                    <input type="password" name="password" class="styled-input" id="passwordInput" placeholder="****"
+                        required>
+                </div>
+                <button type="submit" class="cyber-btn">INITIALIZE PROTOCOL</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('nameInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ name: name, password: password })
+            });
+
+            if (res.ok) {
+                window.location.href = '/game';
+            } else {
+                const text = await res.text();
+                alert(`Login failed: ${text}`);
+            }
+        });
+    </script>
+</body>
+
+</html>
