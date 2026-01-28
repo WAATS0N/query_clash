@@ -16,6 +16,10 @@ DB_PATH = os.environ.get('DB_PATH', os.path.join(BASE_DIR, 'database.db'))
 print(f" * Using database: {DB_PATH}")
 IS_PROD = os.environ.get('FLASK_ENV') == 'production'
 
+# Admin Configuration
+ADMIN_USER = os.environ.get('ADMIN_USER', 'QCA')
+ADMIN_PASS = os.environ.get('ADMIN_PASS', '8888')
+
 # Session Security
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -94,6 +98,14 @@ def login():
     
     if not name or not password:
         return 'Credentials required', 400
+    
+    # Check for admin login
+    if name == ADMIN_USER and password == ADMIN_PASS:
+        session.permanent = True
+        session['user'] = name
+        session['is_admin'] = True
+        logger.info(f"Admin logged in: {name}")
+        return 'ADMIN', 200
         
     if name.lower() == password.lower():
         return 'Username and password cannot be the same', 400
@@ -122,6 +134,7 @@ def login():
     
     session.permanent = True
     session['user'] = name
+    session['is_admin'] = False
     return 'OK', 200
 
 @app.route('/logout')
@@ -363,6 +376,124 @@ def get_schema():
         schema[table] = columns
         
     return jsonify(schema)
+
+# --- Admin Routes ---
+def admin_required(f):
+    """Decorator to require admin access"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session or not session.get('is_admin'):
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'Admin access required'}), 403
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    db = get_db()
+    
+    # Get all participants
+    participants = db.execute('''
+        SELECT name, current_round, elapsed_time, solved, query_count, round_start_time
+        FROM participants 
+        ORDER BY solved DESC, current_round DESC, elapsed_time ASC
+    ''').fetchall()
+    
+    # Get investigations
+    investigations = db.execute('SELECT * FROM investigations ORDER BY round, id').fetchall()
+    
+    # Get submissions
+    submissions = db.execute('''
+        SELECT s.*, p.solved as is_correct
+        FROM submissions s
+        JOIN participants p ON s.name = p.name
+        ORDER BY s.submission_time DESC
+    ''').fetchall()
+    
+    # Format time helper
+    def format_time(seconds):
+        if seconds is None: return "00:00:00"
+        h = int(seconds) // 3600
+        m = (int(seconds) % 3600) // 60
+        s = int(seconds) % 60
+        return f"{h:02}:{m:02}:{s:02}"
+    
+    stats = []
+    for p in participants:
+        stats.append({
+            'name': p['name'],
+            'round': p['current_round'],
+            'time': format_time(p['elapsed_time']),
+            'solved': p['solved'],
+            'queries': p['query_count'],
+            'start_time': p['round_start_time']
+        })
+    
+    inv_list = []
+    for inv in investigations:
+        inv_list.append({
+            'id': inv['id'],
+            'round': inv['round'],
+            'prompt': inv['prompt'],
+            'answer': inv['correct_answer']
+        })
+    
+    sub_list = []
+    for sub in submissions:
+        sub_list.append({
+            'name': sub['name'],
+            'round': sub['round'],
+            'answer': sub['final_answer'],
+            'time': sub['submission_time'],
+            'correct': sub['is_correct']
+        })
+        
+    return render_template('admin.html', 
+                           stats=stats, 
+                           investigations=inv_list,
+                           submissions=sub_list,
+                           admin_user=session['user'])
+
+@app.route('/admin/reset-user/<name>', methods=['POST'])
+@admin_required
+def reset_user(name):
+    db = get_db()
+    
+    # Reset user's progress
+    db.execute('''
+        UPDATE participants 
+        SET current_round = 1, elapsed_time = 0, solved = 0, query_count = 0,
+            round_start_time = ?
+        WHERE name = ?
+    ''', (datetime.datetime.now(), name))
+    
+    # Clear their investigation progress
+    db.execute('DELETE FROM investigation_progress WHERE name = ?', (name,))
+    
+    # Clear their submission
+    db.execute('DELETE FROM submissions WHERE name = ?', (name,))
+    
+    db.commit()
+    logger.info(f"Admin reset user: {name}")
+    
+    return jsonify({'success': True, 'message': f'User {name} has been reset'})
+
+@app.route('/admin/delete-user/<name>', methods=['POST'])
+@admin_required
+def delete_user(name):
+    db = get_db()
+    
+    db.execute('DELETE FROM investigation_progress WHERE name = ?', (name,))
+    db.execute('DELETE FROM submissions WHERE name = ?', (name,))
+    db.execute('DELETE FROM participants WHERE name = ?', (name,))
+    
+    db.commit()
+    logger.info(f"Admin deleted user: {name}")
+    
+    return jsonify({'success': True, 'message': f'User {name} has been deleted'})
 
 @app.route('/analytics')
 def analytics():

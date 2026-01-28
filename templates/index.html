@@ -42,7 +42,12 @@
             });
 
             if (res.ok) {
-                window.location.href = '/game';
+                const text = await res.text();
+                if (text === 'ADMIN') {
+                    window.location.href = '/admin';
+                } else {
+                    window.location.href = '/game';
+                }
             } else {
                 const text = await res.text();
                 alert(`Login failed: ${text}`);
