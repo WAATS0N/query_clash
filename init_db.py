@@ -39,6 +39,7 @@ def init_db():
             name TEXT,
             investigation_id INTEGER,
             solved INTEGER DEFAULT 0,
+            solved_at DATETIME,
             PRIMARY KEY (name, investigation_id)
         )
     ''')

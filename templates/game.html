@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Query Clash | Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -15,6 +18,9 @@
             <div class="brand">QUERY_CLASH</div>
             <div class="timer" id="timerDisplay">00:00:00</div>
             <div style="display: flex; gap: 1rem; align-items: center;">
+                <button id="finalSubmitBtn" class="cyber-btn hidden" style="padding: 6px 14px; font-size: 0.85rem; background: var(--primary-color); color: var(--bg-dark); font-weight: bold; border-color: var(--primary-color);">
+                    SUBMIT FINAL REPORT
+                </button>
                 <a href="/logout" class="cyber-btn" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none; border-color: var(--error-color); color: var(--error-color);">LOGOUT</a>
                 <button id="themeToggle" class="cyber-btn"
                     style="padding: 4px 10px; font-size: 0.8rem;">LIGHT/DARK</button>
@@ -42,18 +48,13 @@
             </div>
 
             <div class="panel-title" style="margin-top: 20px;">DATABASE SCHEMA</div>
-            <a href="{{ url_for('static', filename='schema.png') }}" target="_blank">
-                <img src="{{ url_for('static', filename='schema.png') }}" alt="Database Schema Map" style="width: 100%; border-radius: 4px; margin-bottom: 10px; border: 1px solid var(--neon-cyan); cursor: pointer;" title="Click to enlarge">
-            </a>
+            <img src="{{ url_for('static', filename='schema.png') }}" alt="Database Schema Map" id="schemaThumb" style="width: 100%; border-radius: 4px; margin-bottom: 10px; border: 1px solid var(--neon-cyan); cursor: pointer;" title="Click to enlarge" onclick="openSchemaModal()">
             <div id="schemaList" class="schema-list">
                 <div class="result-msg">Loading schema...</div>
             </div>
 
             <div class="panel-title" style="margin-top: 20px;">CASE NOTES</div>
             <textarea id="caseNotes" class="case-notes" placeholder="Note down clues, IDs, and transcripts here..."></textarea>
-
-            <button id="finalSubmitBtn" class="cyber-btn hidden" style="width: 100%; margin-top: auto;">SUBMIT FINAL
-                REPORT</button>
         </aside>
 
         <!-- Main Area: SQL Terminals -->
@@ -80,6 +81,72 @@
     <form id="finalForm" action="/submit" method="POST" class="hidden">
         <input type="hidden" name="final_answer" id="finalAnswerInput">
     </form>
+
+    <!-- Schema Modal -->
+    <div id="schemaModal" class="schema-modal" onclick="closeSchemaModal(event)">
+        <div class="schema-modal-content">
+            <span class="schema-modal-close" onclick="closeSchemaModal()">&times;</span>
+            <img src="{{ url_for('static', filename='schema.png') }}" alt="Database Schema Map">
+        </div>
+    </div>
+
+    <style>
+        .schema-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+        }
+        .schema-modal.active {
+            display: flex;
+        }
+        .schema-modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .schema-modal-content img {
+            max-width: 100%;
+            max-height: 85vh;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+        }
+        .schema-modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: var(--primary-color);
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .schema-modal-close:hover {
+            color: var(--error-color);
+            transform: scale(1.2);
+        }
+    </style>
+
+    <script>
+        function openSchemaModal() {
+            document.getElementById('schemaModal').classList.add('active');
+        }
+        function closeSchemaModal(event) {
+            if (!event || event.target.id === 'schemaModal' || event.target.classList.contains('schema-modal-close')) {
+                document.getElementById('schemaModal').classList.remove('active');
+            }
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeSchemaModal();
+        });
+    </script>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

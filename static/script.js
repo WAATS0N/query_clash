@@ -138,12 +138,34 @@ async function syncState() {
   }
 }
 
-document.getElementById("finalSubmitBtn").addEventListener("click", () => {
-  const answer = prompt("FINAL SUBMISSION\n\nWho is the culprit? (Enter name)");
-  if (answer) {
-    if (confirm(`Submit final answer: "${answer}"? This cannot be undone.`)) {
+document.getElementById("finalSubmitBtn").addEventListener("click", async () => {
+  // Get the answer from investigation 2 input field
+  const inv2Input = document.getElementById("ans-2");
+  const answer = inv2Input ? inv2Input.value.trim() : investigation2Answer;
+  
+  if (!answer) {
+    alert("Please enter your answer in Investigation #2 first!");
+    if (inv2Input) inv2Input.focus();
+    return;
+  }
+  
+  if (confirm(`Submit final answer: "${answer}"?\n\nThis cannot be undone.`)) {
+    try {
+      // First send to verify endpoint for investigation 2
+      const verifyRes = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: 2, answer: answer }),
+      });
+      
+      const verifyData = await verifyRes.json();
+      
+      // Also submit as final answer
       document.getElementById("finalAnswerInput").value = answer;
       document.getElementById("finalForm").submit();
+    } catch (e) {
+      console.error("Submission error:", e);
+      alert("Submission failed. Please try again.");
     }
   }
 });
@@ -193,6 +215,9 @@ function updateTimer() {
   }
 }
 
+// Global variable to store investigation 2 answer (placeholder answer)
+let investigation2Answer = "";
+
 // Investigations UI
 function renderInvestigations() {
   const list = document.getElementById("investigationList");
@@ -214,12 +239,28 @@ function renderInvestigations() {
 
     if (!inv.solved) {
       allSolved = false;
-      content += `
+      
+      // Check if this is investigation 2 (the placeholder investigation)
+      if (inv.id === 2) {
+        // Investigation 2 is a placeholder - shows input only, submit via SUBMIT FINAL REPORT button
+        content += `
+                <div class="inv-input-group placeholder-answer">
+                    <input type="text" class="inv-input" placeholder="Enter your final answer here..." id="ans-${inv.id}" 
+                           oninput="updateInvestigation2Answer(this.value)">
+                    <span style="font-size: 0.7rem; color: var(--text-dim); margin-top: 6px; display: block;">
+                        Use SUBMIT FINAL REPORT button below to submit
+                    </span>
+                </div>
+            `;
+      } else {
+        // Regular investigation with immediate submit
+        content += `
                 <div class="inv-input-group">
                     <input type="text" class="inv-input" placeholder="Answer..." id="ans-${inv.id}">
                     <button class="inv-submit" onclick="submitAnswer(${inv.id})">></button>
                 </div>
             `;
+      }
     }
 
     div.innerHTML = content;
@@ -238,25 +279,46 @@ function renderInvestigations() {
 }
 
 async function submitAnswer(id) {
+  console.log("submitAnswer called with id:", id);
   const input = document.getElementById(`ans-${id}`);
-  const answer = input.value;
+  console.log("Input element:", input);
+  const answer = input ? input.value : "";
+  console.log("Answer value:", answer);
 
-  const res = await fetch("/api/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, answer }),
-  });
-
-  const data = await res.json();
-  if (data.correct) {
-    // Reload to update state (and potentially round)
-    await loadInvestigations();
-    // Also check if round changed by syncing state?
-    // Ideally backend handles round promotion on solve.
-  } else {
-    input.style.borderColor = "red";
-    setTimeout(() => (input.style.borderColor = "#444"), 1000);
+  if (!answer.trim()) {
+    alert("Please enter an answer!");
+    return;
   }
+
+  try {
+    const res = await fetch("/api/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, answer }),
+    });
+
+    const data = await res.json();
+    console.log("Verify response:", data);
+    
+    if (data.correct) {
+      // Reload to update state (and potentially round)
+      await loadInvestigations();
+      await syncState(); // Also sync state to update round and show submit button
+      alert("✓ Correct! Investigation solved.");
+    } else {
+      input.style.borderColor = "red";
+      setTimeout(() => (input.style.borderColor = "#444"), 1000);
+      alert("✗ Incorrect answer. Try again.");
+    }
+  } catch (e) {
+    console.error("Submit error:", e);
+    alert("Submission failed. Please try again.");
+  }
+}
+
+// Update the global investigation 2 answer when user types
+function updateInvestigation2Answer(value) {
+  investigation2Answer = value.trim();
 }
 
 // Terminals

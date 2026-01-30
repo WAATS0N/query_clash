@@ -51,6 +51,31 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+# --- Helper Functions ---
+def format_time(seconds):
+    """Format seconds into HH:MM:SS string"""
+    if seconds is None:
+        return "00:00:00"
+    h = int(seconds) // 3600
+    m = (int(seconds) % 3600) // 60
+    s = int(seconds) % 60
+    return f"{h:02}:{m:02}:{s:02}"
+
+def format_datetime(dt_str):
+    """Format datetime string into HH:MM:SS for display"""
+    if not dt_str:
+        return "-"
+    try:
+        for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+            try:
+                dt = datetime.datetime.strptime(dt_str.split('+')[0], fmt)
+                return dt.strftime('%H:%M:%S')
+            except ValueError:
+                continue
+        return dt_str
+    except:
+        return "-"
+
 # --- Health Check ---
 @app.route('/health')
 def health_check():
@@ -101,7 +126,7 @@ def login():
     
     # Check for admin login
     if name == ADMIN_USER and password == ADMIN_PASS:
-        session.permanent = True
+        session.permanent = False
         session['user'] = name
         session['is_admin'] = True
         logger.info(f"Admin logged in: {name}")
@@ -132,7 +157,7 @@ def login():
             logger.warning(f"Failed login attempt for {name}")
             return 'Incorrect password', 401
     
-    session.permanent = True
+    session.permanent = False
     session['user'] = name
     session['is_admin'] = False
     return 'OK', 200
@@ -240,12 +265,23 @@ def verify_answer():
     is_correct = inv['correct_answer'].lower() == answer.lower()
     
     if is_correct:
-        db.execute('INSERT OR IGNORE INTO investigation_progress (name, investigation_id, solved) VALUES (?, ?, 1)', 
-                   (session['user'], inv_id))
+        # Try to insert with solved_at, fall back to without if column doesn't exist
+        try:
+            db.execute('INSERT OR IGNORE INTO investigation_progress (name, investigation_id, solved, solved_at) VALUES (?, ?, 1, ?)', 
+                       (session['user'], inv_id, datetime.datetime.now()))
+        except Exception:
+            # Fallback for legacy database without solved_at column
+            db.execute('INSERT OR IGNORE INTO investigation_progress (name, investigation_id, solved) VALUES (?, ?, 1)', 
+                       (session['user'], inv_id))
         
         # Check round progress
         name = session['user']
         user = db.execute('SELECT * FROM participants WHERE name = ?', (name,)).fetchone()
+        
+        if not user:
+            db.commit()
+            return jsonify({'correct': True, 'error': 'User not found'}), 200
+            
         current_round = user['current_round']
         
         total_in_round = db.execute('SELECT COUNT(*) FROM investigations WHERE round = ?', (current_round,)).fetchone()[0]
@@ -303,14 +339,6 @@ def submit():
         db.execute('UPDATE participants SET solved = 1 WHERE name = ?', (name,))
         
     db.commit()
-    
-    # Format time for display
-    def format_time(seconds):
-        total_seconds = int(seconds)
-        h = total_seconds // 3600
-        m = (total_seconds % 3600) // 60
-        s = total_seconds % 60
-        return f"{h:02d}:{m:02d}:{s:02d}"
         
     return render_template('submit.html', success=is_correct, time_taken=format_time(time_taken))
 
@@ -413,22 +441,37 @@ def admin_dashboard():
         ORDER BY s.submission_time DESC
     ''').fetchall()
     
-    # Format time helper
-    def format_time(seconds):
-        if seconds is None: return "00:00:00"
-        h = int(seconds) // 3600
-        m = (int(seconds) % 3600) // 60
-        s = int(seconds) % 60
-        return f"{h:02}:{m:02}:{s:02}"
+    # Get round solve times for all participants (graceful fallback if column doesn't exist)
+    solve_times = {}
+    try:
+        round_times = db.execute('''
+            SELECT ip.name, i.round, ip.solved_at
+            FROM investigation_progress ip
+            JOIN investigations i ON ip.investigation_id = i.id
+            WHERE ip.solved = 1
+        ''').fetchall()
+        
+        # Build a map of participant -> round -> solve time
+        for rt in round_times:
+            if rt['name'] not in solve_times:
+                solve_times[rt['name']] = {}
+            solve_times[rt['name']][rt['round']] = rt['solved_at']
+    except Exception as e:
+        # Column doesn't exist in legacy database - just use empty solve times
+        logger.warning(f"Could not fetch solve times (run init_db.py to add solved_at column): {e}")
     
     stats = []
     for p in participants:
+        name = p['name']
+        participant_solves = solve_times.get(name, {})
         stats.append({
-            'name': p['name'],
+            'name': name,
             'round': p['current_round'],
             'time': format_time(p['elapsed_time']),
             'solved': p['solved'],
             'queries': p['query_count'],
+            'round1_time': format_datetime(participant_solves.get(1)),
+            'round2_time': format_datetime(participant_solves.get(2)),
             'start_time': p['round_start_time']
         })
     
@@ -456,6 +499,73 @@ def admin_dashboard():
                            investigations=inv_list,
                            submissions=sub_list,
                            admin_user=session['user'])
+
+@app.route('/api/admin/stats')
+@admin_required
+def admin_stats_api():
+    """API endpoint for live admin dashboard updates"""
+    db = get_db()
+    
+    # Get all participants
+    participants = db.execute('''
+        SELECT name, current_round, elapsed_time, solved, query_count, round_start_time
+        FROM participants 
+        ORDER BY solved DESC, current_round DESC, elapsed_time ASC
+    ''').fetchall()
+    
+    # Get submissions
+    submissions = db.execute('''
+        SELECT s.*, p.solved as is_correct
+        FROM submissions s
+        JOIN participants p ON s.name = p.name
+        ORDER BY s.submission_time DESC
+    ''').fetchall()
+    
+    # Get round solve times for all participants (graceful fallback if column doesn't exist)
+    solve_times = {}
+    try:
+        round_times = db.execute('''
+            SELECT ip.name, i.round, ip.solved_at
+            FROM investigation_progress ip
+            JOIN investigations i ON ip.investigation_id = i.id
+            WHERE ip.solved = 1
+        ''').fetchall()
+        
+        # Build a map of participant -> round -> solve time
+        for rt in round_times:
+            if rt['name'] not in solve_times:
+                solve_times[rt['name']] = {}
+            solve_times[rt['name']][rt['round']] = rt['solved_at']
+    except Exception as e:
+        # Column doesn't exist in legacy database
+        logger.warning(f"Could not fetch solve times: {e}")
+    
+    stats = []
+    for p in participants:
+        name = p['name']
+        participant_solves = solve_times.get(name, {})
+        stats.append({
+            'name': name,
+            'round': p['current_round'],
+            'time': format_time(p['elapsed_time']),
+            'solved': bool(p['solved']),
+            'queries': p['query_count'],
+            'round1_time': format_datetime(participant_solves.get(1)),
+            'round2_time': format_datetime(participant_solves.get(2))
+        })
+    
+    sub_list = []
+    for sub in submissions:
+        sub_list.append({
+            'name': sub['name'],
+            'answer': sub['final_answer'],
+            'correct': bool(sub['is_correct'])
+        })
+    
+    return jsonify({
+        'stats': stats,
+        'submissions': sub_list
+    })
 
 @app.route('/admin/reset-user/<name>', methods=['POST'])
 @admin_required
@@ -503,14 +613,6 @@ def analytics():
         FROM participants 
         ORDER BY query_count DESC, elapsed_time ASC
     ''').fetchall()
-    
-    # Format time for display
-    def format_time(seconds):
-        if seconds is None: return "00:00:00"
-        h = int(seconds) // 3600
-        m = (int(seconds) % 3600) // 60
-        s = int(seconds) % 60
-        return f"{h:02}:{m:02}:{s:02}"
     
     stats = []
     for p in participants:

@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Query Clash | Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         body {
@@ -201,15 +204,15 @@
         <div class="admin-card admin-card-full" style="margin-bottom: 20px;">
             <div class="stats-row">
                 <div>
-                    <div class="stat-number">{{ stats|length }}</div>
+                    <div class="stat-number" id="stat-total">{{ stats|length }}</div>
                     <div class="stat-label">Total Participants</div>
                 </div>
                 <div>
-                    <div class="stat-number">{{ stats|selectattr('solved')|list|length }}</div>
+                    <div class="stat-number" id="stat-solved">{{ stats|selectattr('solved')|list|length }}</div>
                     <div class="stat-label">Solved Mystery</div>
                 </div>
                 <div>
-                    <div class="stat-number">{{ submissions|length }}</div>
+                    <div class="stat-number" id="stat-submissions">{{ submissions|length }}</div>
                     <div class="stat-label">Submissions</div>
                 </div>
             </div>
@@ -224,17 +227,21 @@
                         <tr>
                             <th>Name</th>
                             <th>Round</th>
+                            <th>R1 Solved</th>
+                            <th>R2 Solved</th>
                             <th>Time Elapsed</th>
                             <th>Queries</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="participants-tbody">
                         {% for p in stats %}
                         <tr>
                             <td>{{ p.name }}</td>
                             <td><span class="round-badge">R{{ p.round }}</span></td>
+                            <td>{{ p.round1_time or '-' }}</td>
+                            <td>{{ p.round2_time or '-' }}</td>
                             <td>{{ p.time }}</td>
                             <td>{{ p.queries }}</td>
                             <td class="{{ 'status-solved' if p.solved else 'status-pending' }}">
@@ -248,7 +255,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                <p class="refresh-hint">↻ Refresh page to update stats</p>
+                <p class="refresh-hint">🔄 Auto-updating every 5s | Last: <span id="last-refresh">--:--:--</span></p>
             </div>
 
             <!-- Investigations Panel -->
@@ -285,7 +292,7 @@
                             <th>Result</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="submissions-tbody">
                         {% for sub in submissions %}
                         <tr>
                             <td>{{ sub.name }}</td>
@@ -306,6 +313,79 @@
     </div>
 
     <script>
+        // Auto-refresh interval (5 seconds)
+        const REFRESH_INTERVAL = 5000;
+        let refreshTimer = null;
+
+        async function fetchAdminData() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                if (!res.ok) throw new Error('Failed to fetch stats');
+                const data = await res.json();
+                updateDashboard(data);
+            } catch (e) {
+                console.error('Auto-refresh failed:', e);
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update quick stats
+            document.getElementById('stat-total').textContent = data.stats.length;
+            document.getElementById('stat-solved').textContent = data.stats.filter(s => s.solved).length;
+            document.getElementById('stat-submissions').textContent = data.submissions.length;
+
+            // Update participants table
+            const participantsBody = document.getElementById('participants-tbody');
+            participantsBody.innerHTML = data.stats.map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td><span class="round-badge">R${p.round}</span></td>
+                    <td>${p.round1_time || '-'}</td>
+                    <td>${p.round2_time || '-'}</td>
+                    <td>${p.time}</td>
+                    <td>${p.queries}</td>
+                    <td class="${p.solved ? 'status-solved' : 'status-pending'}">
+                        ${p.solved ? 'SOLVED' : 'IN PROGRESS'}
+                    </td>
+                    <td>
+                        <button class="admin-btn admin-btn-reset" onclick="resetUser('${p.name}')">RESET</button>
+                        <button class="admin-btn admin-btn-delete" onclick="deleteUser('${p.name}')">DELETE</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Update submissions table
+            const submissionsBody = document.getElementById('submissions-tbody');
+            if (data.submissions.length > 0) {
+                submissionsBody.innerHTML = data.submissions.map(sub => `
+                    <tr>
+                        <td>${sub.name}</td>
+                        <td>${sub.answer}</td>
+                        <td class="${sub.correct ? 'correct-answer' : 'wrong-answer'}">
+                            ${sub.correct ? '✓ CORRECT' : '✗ WRONG'}
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                submissionsBody.innerHTML = '<tr><td colspan="3" style="color: #666; text-align: center;">No submissions yet</td></tr>';
+            }
+
+            // Update last refresh time
+            document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+        }
+
+        function startAutoRefresh() {
+            fetchAdminData(); // Initial fetch
+            refreshTimer = setInterval(fetchAdminData, REFRESH_INTERVAL);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+        }
+
         async function resetUser(name) {
             if (!confirm(`Reset all progress for "${name}"? This cannot be undone.`)) return;
             
@@ -313,8 +393,7 @@
             const data = await res.json();
             
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                fetchAdminData(); // Refresh immediately
             } else {
                 alert('Error: ' + (data.error || 'Unknown error'));
             }
@@ -327,12 +406,23 @@
             const data = await res.json();
             
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                fetchAdminData(); // Refresh immediately
             } else {
                 alert('Error: ' + (data.error || 'Unknown error'));
             }
         }
+
+        // Start auto-refresh when page loads
+        document.addEventListener('DOMContentLoaded', startAutoRefresh);
+
+        // Stop when page is hidden, restart when visible
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                startAutoRefresh();
+            }
+        });
     </script>
 </body>
 </html>
