@@ -324,7 +324,7 @@ def submit():
     # But strictly, the system should determine winner. 
     # Let's assume the correct answer is 'Marvin' as per my init_db for R2.
     
-    is_correct = (final_answer.lower() == 'miranda priestly')
+    is_correct = (final_answer.lower() == 'sydney stone')
     
     submission_time = datetime.datetime.now()
     time_taken = user['elapsed_time'] # Approximate, simpler than recalculating exactly right now
@@ -464,14 +464,76 @@ def admin_dashboard():
     for p in participants:
         name = p['name']
         participant_solves = solve_times.get(name, {})
+        
+        # Calculate elapsed time for each round (duration from start to solve, not time of day)
+        round1_elapsed = None
+        round2_elapsed = None
+        start_time = p['round_start_time']
+        
+        if start_time and participant_solves.get(1):
+            try:
+                # Parse start time
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        start_dt = datetime.datetime.strptime(start_time.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    start_dt = None
+                
+                # Parse solve time for round 1
+                solved_1_str = participant_solves.get(1)
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        solved_1_dt = datetime.datetime.strptime(solved_1_str.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    solved_1_dt = None
+                
+                if start_dt and solved_1_dt:
+                    round1_elapsed = (solved_1_dt - start_dt).total_seconds()
+            except Exception:
+                pass
+        
+        if start_time and participant_solves.get(2):
+            try:
+                # Parse start time
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        start_dt = datetime.datetime.strptime(start_time.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    start_dt = None
+                
+                # Parse solve time for round 2
+                solved_2_str = participant_solves.get(2)
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        solved_2_dt = datetime.datetime.strptime(solved_2_str.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    solved_2_dt = None
+                
+                if start_dt and solved_2_dt:
+                    round2_elapsed = (solved_2_dt - start_dt).total_seconds()
+            except Exception:
+                pass
+        
         stats.append({
             'name': name,
             'round': p['current_round'],
             'time': format_time(p['elapsed_time']),
             'solved': p['solved'],
             'queries': p['query_count'],
-            'round1_time': format_datetime(participant_solves.get(1)),
-            'round2_time': format_datetime(participant_solves.get(2)),
+            'round1_time': format_time(round1_elapsed) if round1_elapsed is not None else '-',
+            'round2_time': format_time(round2_elapsed) if round2_elapsed is not None else '-',
             'start_time': p['round_start_time']
         })
     
@@ -544,14 +606,76 @@ def admin_stats_api():
     for p in participants:
         name = p['name']
         participant_solves = solve_times.get(name, {})
+        
+        # Calculate elapsed time for each round (duration from start to solve, not time of day)
+        round1_elapsed = None
+        round2_elapsed = None
+        start_time = p['round_start_time']
+        
+        if start_time and participant_solves.get(1):
+            try:
+                # Parse start time
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        start_dt = datetime.datetime.strptime(start_time.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    start_dt = None
+                
+                # Parse solve time for round 1
+                solved_1_str = participant_solves.get(1)
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        solved_1_dt = datetime.datetime.strptime(solved_1_str.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    solved_1_dt = None
+                
+                if start_dt and solved_1_dt:
+                    round1_elapsed = (solved_1_dt - start_dt).total_seconds()
+            except Exception:
+                pass
+        
+        if start_time and participant_solves.get(2):
+            try:
+                # Parse start time
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        start_dt = datetime.datetime.strptime(start_time.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    start_dt = None
+                
+                # Parse solve time for round 2
+                solved_2_str = participant_solves.get(2)
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        solved_2_dt = datetime.datetime.strptime(solved_2_str.split('+')[0], fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    solved_2_dt = None
+                
+                if start_dt and solved_2_dt:
+                    round2_elapsed = (solved_2_dt - start_dt).total_seconds()
+            except Exception:
+                pass
+        
         stats.append({
             'name': name,
             'round': p['current_round'],
             'time': format_time(p['elapsed_time']),
             'solved': bool(p['solved']),
             'queries': p['query_count'],
-            'round1_time': format_datetime(participant_solves.get(1)),
-            'round2_time': format_datetime(participant_solves.get(2))
+            'round1_time': format_time(round1_elapsed) if round1_elapsed is not None else '-',
+            'round2_time': format_time(round2_elapsed) if round2_elapsed is not None else '-'
         })
     
     sub_list = []

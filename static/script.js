@@ -26,6 +26,8 @@ function toggleTheme() {
 document.addEventListener("DOMContentLoaded", () => {
   initGame();
   setInterval(updateTimer, 1000);
+  // Sync state periodically to keep elapsed_time updated in the database
+  setInterval(syncState, 30000); // Sync every 30 seconds
 });
 
 async function initGame() {
@@ -40,15 +42,19 @@ function initNotepad() {
   const notepad = document.getElementById("caseNotes");
   if (!notepad) return;
 
-  // Load saved notes
-  const savedNotes = localStorage.getItem("case_notes");
+  // Get the current username to make notes user-specific
+  const userName = document.getElementById("userName")?.textContent || "default";
+  const storageKey = `case_notes_${userName}`;
+
+  // Load saved notes for this user
+  const savedNotes = localStorage.getItem(storageKey);
   if (savedNotes) {
     notepad.value = savedNotes;
   }
 
-  // Save on input
+  // Save on input with user-specific key
   notepad.addEventListener("input", (e) => {
-    localStorage.setItem("case_notes", e.target.value);
+    localStorage.setItem(storageKey, e.target.value);
   });
 }
 

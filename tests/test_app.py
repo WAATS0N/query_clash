@@ -78,7 +78,7 @@ class QueryClashTestCase(unittest.TestCase):
         q1 = next(i for i in invs if "committed the murder" in i['prompt'])
         
         # Answer Q1
-        self.app.post('/api/verify', json={'id': q1['id'], 'answer': 'Jeremy Bowers'})
+        self.app.post('/api/verify', json={'id': q1['id'], 'answer': 'Damon Salvitor'})
         
         # Check State (Should be R2 now since R1 only has 1 investigation)
         rv = self.app.get('/api/state')
@@ -88,15 +88,15 @@ class QueryClashTestCase(unittest.TestCase):
         self.login()
         # Fast forward to submission
         
-        # Let's just submit 'Miranda Priestly'.
-        rv = self.app.post('/submit', data={'final_answer': 'Miranda Priestly'})
+        # Let's just submit 'Sydney Stone'.
+        rv = self.app.post('/submit', data={'final_answer': 'Sydney Stone'})
         self.assertIn(b'COMPLETED', rv.data) # Check for success message
         
         # Check DB
         db = get_db()
         sub = db.execute('SELECT * FROM submissions WHERE name = "TestAgent"').fetchone()
         self.assertIsNotNone(sub)
-        self.assertEqual(sub['final_answer'], 'Miranda Priestly')
+        self.assertEqual(sub['final_answer'], 'Sydney Stone')
 
 if __name__ == '__main__':
     with open('test_output.txt', 'w') as f:

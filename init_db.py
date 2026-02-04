@@ -81,10 +81,10 @@ def init_db():
 
     # Populate Investigations (SQL Murder Mystery Flow)
     # Round 1: Finding the murderer
-    c.execute("INSERT INTO investigations (round, prompt, correct_answer) VALUES (1, 'Who committed the murder on Jan 15, 2018 in SQL City?', 'Jeremy Bowers')")
+    c.execute("INSERT INTO investigations (round, prompt, correct_answer) VALUES (1, 'Who committed the murder on Jan 15, 2018 in SQL City?', 'Damon Salvitor')")
     
     # Round 2: Finding the mastermind
-    c.execute("INSERT INTO investigations (round, prompt, correct_answer) VALUES (2, 'Who hired the murderer? (Check the killer''s interview for clues)', 'Miranda Priestly')")
+    c.execute("INSERT INTO investigations (round, prompt, correct_answer) VALUES (2, 'Who hired the murderer? (Check the killer''s interview for clues)', 'Sydney Stone')")
 
     # Production User
     c.execute("INSERT INTO participants (name, password, round_start_time) VALUES (?, ?, ?)", 
