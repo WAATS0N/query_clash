@@ -25,7 +25,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=IS_PROD,  # Only send cookie over HTTPS in production
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=3600 # 1 hour
+    PERMANENT_SESSION_LIFETIME=4500 # 1 hour
 )
 
 # Logging Configuration
@@ -187,8 +187,8 @@ def get_state():
         session.pop('user', None)
         return jsonify({'error': 'User not found'}), 404
 
-    # Calculate remaining time (Example: 60 minutes limit)
-    ROUND_LIMIT_SECONDS = 3600 
+    # Calculate remaining time (1 hour 15 minutes limit)
+    ROUND_LIMIT_SECONDS = 4500
     
     try:
         ts_str = user['round_start_time']
@@ -324,7 +324,7 @@ def submit():
     # But strictly, the system should determine winner. 
     # Let's assume the correct answer is 'Marvin' as per my init_db for R2.
     
-    is_correct = (final_answer.lower() == 'sydney stone')
+    is_correct = (final_answer.lower() == 'damian white')
     
     submission_time = datetime.datetime.now()
     time_taken = user['elapsed_time'] # Approximate, simpler than recalculating exactly right now
